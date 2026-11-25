@@ -182,7 +182,7 @@ function cooldown(secs, prefix) {
   const tick = () => {
     cdLeft = left;
     if (left <= 0) { clearInterval(cdTimer); setBtns(false); authMsg('Cooldown over. You can try again now.', false); return; }
-    authMsg(prefix + ' Wait ' + left + 's, then try again. Pressing again only restarts the wait.', false); left--;
+    authMsg(prefix + ' Wait ' + left + 's, then try again.', false); left--;
   };
   tick(); cdTimer = setInterval(tick, 1000);
 }
@@ -244,7 +244,7 @@ $('resendBtn').onclick = async () => {
   const c = h.get('error_code');
   if (c) {
     history.replaceState(null, '', location.pathname);
-    if (c === 'otp_expired') authMsg('That confirmation link was already used or has expired. If you already opened it once, your email is confirmed: just Sign in. Otherwise Sign in to get a new link.', false);
+    if (c === 'otp_expired') authMsg('That confirmation link was already used or has expired. If you have already confirmed, just Sign in. If not, enter your email and password and tap Sign in to get a new link.', false);
     else authMsg(h.get('error_description') || 'Sign-in link problem.', false);
   }
 })();
