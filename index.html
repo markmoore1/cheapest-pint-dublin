@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cheapest Pint Dublin</title>
+<style>
+  :root { --bg:#10130f; --card:#1b201a; --line:#2c332a; --text:#f2efe6; --dim:#9aa48f; --gold:#e8b23f; --green:#3f7d4e; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--text); font-family:-apple-system,'Segoe UI',Roboto,sans-serif; padding:0 0 80px; }
+  header { padding:20px 16px 12px; border-bottom:1px solid var(--line); }
+  h1 { font-size:22px; } h1 span { color:var(--gold); }
+  .sub { color:var(--dim); font-size:13px; margin-top:4px; }
+  main { max-width:640px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:16px; }
+  input, select { width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--line); background:#12160f; color:var(--text); font-size:15px; margin:5px 0; }
+  button { background:var(--gold); color:#181203; border:0; border-radius:10px; padding:12px 16px; font-size:15px; font-weight:700; cursor:pointer; width:100%; margin-top:8px; }
+  button.ghost { background:transparent; color:var(--dim); border:1px solid var(--line); font-weight:500; }
+  .row { display:flex; align-items:center; gap:12px; padding:11px 4px; border-bottom:1px solid var(--line); }
+  .rank { width:28px; color:var(--dim); font-weight:700; }
+  .rank.first { color:var(--gold); font-size:18px; }
+  .pub { flex:1; } .pub b { font-size:15px; } .pub small { display:block; color:var(--dim); font-size:12px; margin-top:2px; }
+  .price { font-size:18px; font-weight:800; color:var(--gold); white-space:nowrap; }
+  .price small { display:block; color:var(--dim); font-weight:400; font-size:11px; text-align:right; }
+  .meta { color:var(--dim); font-size:12px; margin-top:6px; }
+  .seed { display:inline-block; background:#262b1d; color:var(--dim); border-radius:6px; padding:1px 6px; font-size:11px; margin-left:6px; }
+  .tabs { display:flex; gap:8px; margin-bottom:12px; }
+  .tabs button { width:auto; padding:8px 14px; margin:0; background:transparent; color:var(--dim); border:1px solid var(--line); font-weight:500; }
+  .tabs button.on { background:var(--gold); color:#181203; border-color:var(--gold); font-weight:700; }
+  .err { color:#e86a5a; font-size:13px; margin-top:6px; }
+  .ok { color:#7fc98a; font-size:13px; margin-top:6px; }
+  .who { color:var(--dim); font-size:13px; display:flex; justify-content:space-between; align-items:center; }
+  a { color:var(--gold); }
+  .hidden { display:none; }
+  footer { text-align:center; color:var(--dim); font-size:12px; padding:24px 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cheapest Pint <span>Dublin</span></h1>
+  <div class="sub">Crowd-reported pint prices. Sign in, report what you paid, find the cheapest.</div>
+</header>
+<main>
+  <div class="card" id="authCard">
+    <div class="who" id="signedOut">
+      <div style="width:100%">
+        <b>Sign in or create an account</b>
+        <div class="meta">Needed to report a pint. Browsing is open to all.</div>
+        <input id="email" type="email" placeholder="Email" autocomplete="email">
+        <input id="password" type="password" placeholder="Password (6+ characters)" autocomplete="current-password">
+        <input id="dname" type="text" placeholder="Display name (new accounts)">
+        <button id="signInBtn">Sign in</button>
+        <button id="signUpBtn" class="ghost">Create account</button>
+        <div class="err" id="authErr"></div>
+      </div>
+    </div>
+    <div class="who hidden" id="signedIn">
+      <div>Signed in as <b id="meName"></b><div class="meta" id="meEmail"></div></div>
+      <button class="ghost" style="width:auto" id="signOutBtn">Sign out</button>
+    </div>
+    <div id="profileEdit" class="hidden">
+      <input id="newName" type="text" placeholder="Change display name">
+      <button class="ghost" id="saveName">Save name</button>
+      <div class="ok" id="nameOk"></div>
+    </div>
+  </div>
+
+  <div class="card hidden" id="reportCard">
+    <b>Report a pint price</b>
+    <div class="meta">What did you pay, and where?</div>
+    <input id="pubInput" list="pubList" placeholder="Pub name (pick or type a new one)">
+    <datalist id="pubList"></datalist>
+    <select id="drink">
+      <option>Guinness</option><option>Heineken</option><option>Carlsberg</option>
+      <option>Smithwick's</option><option>Beamish</option><option>Murphy's</option>
+      <option>Lager (other)</option><option>Ale</option><option>Cider</option><option>Other</option>
+    </select>
+    <input id="price" type="number" min="1" max="30" step="0.05" placeholder="Price e.g. 5.60">
+    <input id="note" type="text" placeholder="Note (optional - e.g. before 7pm, match night)">
+    <button id="reportBtn">Send report</button>
+    <div class="err" id="repErr"></div><div class="ok" id="repOk"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="on" data-drink="all">All drinks</button>
+    <button data-drink="Guinness">Guinness only</button>
+  </div>
+  <div id="board"></div>
+  <div class="meta" id="avg"></div>
+</main>
+<footer>
+  Prices are user and community reports, not guarantees. Seed entries are marked.<br>
+  Built on Supabase. Seed data: getpint.ie community reports, read 24 Nov 2026.
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://pdspvoacsfgltevttzqe.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_tN79NcGhl8p1VQPFjOMKbw_gFx0xr2o';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let pubs = [], reports = [], profiles = {}, session = null, drinkFilter = 'all';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ago = d => { const s=(Date.now()-new Date(d))/1e3; if(s<3600) return Math.max(1,Math.round(s/60))+'m ago'; if(s<86400) return Math.round(s/3600)+'h ago'; return Math.round(s/86400)+'d ago'; };
+
+async function loadData() {
+  const [p, r, pr] = await Promise.all([
+    sb.from('pubs').select('*'),
+    sb.from('pint_reports').select('*').order('reported_at', {ascending:false}).limit(2000),
+    sb.from('profiles').select('*')
+  ]);
+  pubs = p.data || []; reports = r.data || [];
+  profiles = {}; (pr.data||[]).forEach(x => profiles[x.id] = x.display_name);
+  $('pubList').innerHTML = pubs.map(x => `<option value="${esc(x.name)}">`).join('');
+  render();
+}
+
+function latestPerPub() {
+  const seen = {};
+  for (const r of reports) {
+    if (drinkFilter !== 'all' && r.drink !== drinkFilter) continue;
+    if (!seen[r.pub_id]) seen[r.pub_id] = r;
+  }
+  return Object.values(seen).sort((a,b) => a.price - b.price);
+}
+
+function render() {
+  const latest = latestPerPub();
+  const pubById = {}; pubs.forEach(p => pubById[p.id] = p);
+  $('board').innerHTML = latest.map((r,i) => {
+    const p = pubById[r.pub_id] || {name:'?'};
+    const who = r.source && r.source.startsWith('seed:')
+      ? `<span class="seed">getpint.ie seed</span>`
+      : `by ${esc(profiles[r.user_id] || 'a reporter')}`;
+    return `<div class="row">
+      <div class="rank ${i===0?'first':''}">${i===0?'&#127866;':(i+1)}</div>
+      <div class="pub"><b>${esc(p.name)}</b><small>${esc(p.address||'')} &middot; ${esc(r.drink)}${r.note?' &middot; '+esc(r.note):''}</small>
+      <div class="meta">${who} &middot; ${ago(r.reported_at)}</div></div>
+      <div class="price">&euro;${Number(r.price).toFixed(2)}<small>per pint</small></div>
+    </div>`;
+  }).join('') || '<div class="meta">No reports yet for this filter.</div>';
+  if (latest.length) {
+    const avg = latest.reduce((s,r)=>s+Number(r.price),0)/latest.length;
+    $('avg').textContent = `Average of latest reports: €${avg.toFixed(2)} across ${latest.length} pubs.`;
+  }
+}
+
+async function refreshAuthUI() {
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+  const on = !!session;
+  $('signedOut').classList.toggle('hidden', on);
+  $('signedIn').classList.toggle('hidden', !on);
+  $('profileEdit').classList.toggle('hidden', !on);
+  $('reportCard').classList.toggle('hidden', !on);
+  if (on) {
+    $('meEmail').textContent = session.user.email;
+    $('meName').textContent = profiles[session.user.id] || session.user.user_metadata?.display_name || session.user.email.split('@')[0];
+  }
+}
+
+$('signInBtn').onclick = async () => {
+  $('authErr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
+  if (error) $('authErr').textContent = error.message;
+};
+
+$('signUpBtn').onclick = async () => {
+  $('authErr').textContent = '';
+  const { error } = await sb.auth.signUp({
+    email: $('email').value.trim(), password: $('password').value,
+    options: { data: { display_name: $('dname').value.trim() } }
+  });
+  if (error) $('authErr').textContent = error.message;
+  else $('authErr').textContent = '';
+};
+
+$('signOutBtn').onclick = () => sb.auth.signOut();
+
+$('saveName').onclick = async () => {
+  const n = $('newName').value.trim(); if (!n || !session) return;
+  const { error } = await sb.from('profiles').update({ display_name: n }).eq('id', session.user.id);
+  $('nameOk').textContent = error ? error.message : 'Saved.';
+  if (!error) { profiles[session.user.id] = n; $('meName').textContent = n; render(); }
+};
+
+$('reportBtn').onclick = async () => {
+  $('repErr').textContent = ''; $('repOk').textContent = '';
+  if (!session) { $('repErr').textContent = 'Sign in first.'; return; }
+  const name = $('pubInput').value.trim();
+  const price = parseFloat($('price').value);
+  if (!name) { $('repErr').textContent = 'Which pub?'; return; }
+  if (!(price >= 1 && price <= 30)) { $('repErr').textContent = 'Price looks off (1-30 euro).'; return; }
+  let pub = pubs.find(p => p.name.toLowerCase() === name.toLowerCase());
+  if (!pub) {
+    const { data, error } = await sb.from('pubs').insert({ name }).select().single();
+    if (error) { $('repErr').textContent = error.message; return; }
+    pub = data; pubs.push(pub);
+  }
+  const { error } = await sb.from('pint_reports').insert({
+    pub_id: pub.id, user_id: session.user.id,
+    drink: $('drink').value, price, note: $('note').value.trim() || null
+  });
+  if (error) { $('repErr').textContent = error.message; return; }
+  $('repOk').textContent = 'Reported. Fair play.';
+  $('pubInput').value = ''; $('price').value = ''; $('note').value = '';
+  await loadData();
+};
+
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); drinkFilter = b.dataset.drink; render();
+});
+
+sb.auth.onAuthStateChange(async () => { await loadData(); refreshAuthUI(); });
+loadData().then(refreshAuthUI);
+</script>
+</body>
+</html>
