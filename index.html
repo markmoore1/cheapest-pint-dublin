@@ -23,6 +23,7 @@
   .price { font-size:18px; font-weight:800; color:var(--gold); white-space:nowrap; }
   .price small { display:block; color:var(--dim); font-weight:400; font-size:11px; text-align:right; }
   .meta { color:var(--dim); font-size:12px; margin-top:6px; }
+  .links { margin-top:5px; font-size:12px; } .links a { margin-right:12px; color:var(--gold); text-decoration:none; } .links a:hover { text-decoration:underline; }
   .seed { display:inline-block; background:#262b1d; color:var(--dim); border-radius:6px; padding:1px 6px; font-size:11px; margin-left:6px; }
   .tabs { display:flex; gap:8px; margin-bottom:12px; }
   .tabs button { width:auto; padding:8px 14px; margin:0; background:transparent; color:var(--dim); border:1px solid var(--line); font-weight:500; }
@@ -124,6 +125,15 @@ function latestPerPub() {
   return Object.values(seen).sort((a,b) => a.price - b.price);
 }
 
+function pubLinks(p) {
+  const parts = [];
+  if (p.getpint_url) parts.push(`<a href="${esc(p.getpint_url)}" target="_blank" rel="noopener">GetPint</a>`);
+  const maps = p.maps_url || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.name + ' Dublin'));
+  parts.push(`<a href="${esc(maps)}" target="_blank" rel="noopener">Google Maps</a>`);
+  if (p.phone) parts.push(`<a href="tel:${esc(p.phone.replace(/\s/g,''))}">&#9990; ${esc(p.phone)}</a>`);
+  return parts.join('');
+}
+
 function render() {
   const latest = latestPerPub();
   const pubById = {}; pubs.forEach(p => pubById[p.id] = p);
@@ -135,7 +145,8 @@ function render() {
     return `<div class="row">
       <div class="rank ${i===0?'first':''}">${i===0?'&#127866;':(i+1)}</div>
       <div class="pub"><b>${esc(p.name)}</b><small>${esc(p.address||'')} &middot; ${esc(r.drink)}${r.note?' &middot; '+esc(r.note):''}</small>
-      <div class="meta">${who} &middot; ${ago(r.reported_at)}</div></div>
+      <div class="meta">${who} &middot; ${ago(r.reported_at)}</div>
+      <div class="links">${pubLinks(p)}</div></div>
       <div class="price">&euro;${Number(r.price).toFixed(2)}<small>per pint</small></div>
     </div>`;
   }).join('') || '<div class="meta">No reports yet for this filter.</div>';
@@ -169,7 +180,7 @@ $('signUpBtn').onclick = async () => {
   $('authErr').textContent = '';
   const { error } = await sb.auth.signUp({
     email: $('email').value.trim(), password: $('password').value,
-    options: { data: { display_name: $('dname').value.trim() } }
+    options: { emailRedirectTo: 'https://markmoore1.github.io/cheapest-pint-dublin/', data: { display_name: $('dname').value.trim() } }
   });
   if (error) $('authErr').textContent = error.message;
   else $('authErr').textContent = '';
