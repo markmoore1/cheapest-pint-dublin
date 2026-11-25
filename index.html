@@ -30,6 +30,8 @@
   .tabs button.on { background:var(--gold); color:#181203; border-color:var(--gold); font-weight:700; }
   .err { color:#e86a5a; font-size:13px; margin-top:6px; }
   .ok { color:#7fc98a; font-size:13px; margin-top:6px; }
+  .success { background:rgba(127,201,138,.12); border:1px solid #7fc98a; border-radius:10px; padding:10px 12px; font-size:14px; line-height:1.4; }
+  .success::before { content:'\2713  '; font-weight:700; }
   .who { color:var(--dim); font-size:13px; display:flex; justify-content:space-between; align-items:center; }
   a { color:var(--gold); }
   .hidden { display:none; }
@@ -173,9 +175,10 @@ async function refreshAuthUI() {
 $('signInBtn').onclick = async () => {
   $('authErr').textContent = '';
   const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
-  if (error) $('authErr').textContent = error.message;
+  if (error) { const e2=$('authErr'); e2.className='err'; e2.textContent = error.message; }
 };
 
+const authMsg = (txt, ok) => { const e = $('authErr'); e.className = ok ? 'ok success' : 'err'; e.textContent = txt; };
 $('signUpBtn').onclick = async () => {
   const btn = $('signUpBtn');
   if (btn.disabled) return;
@@ -188,15 +191,15 @@ $('signUpBtn').onclick = async () => {
       options: { emailRedirectTo: 'https://markmoore1.github.io/cheapest-pint-dublin/', data: { display_name: $('dname').value.trim() } }
     });
     if (error) {
-      if (error.status >= 500) $('authErr').textContent = 'The server hiccuped. Your account may have been created: check your email for a confirmation link, or try Sign in.';
-      else $('authErr').textContent = error.message;
+      if (error.status >= 500) authMsg('The server hiccuped. Your account may have been created: check your email for a confirmation link, or try Sign in.', false);
+      else authMsg(error.message, false);
     } else if (data && data.session) {
       $('authErr').textContent = '';
     } else {
-      $('authErr').textContent = 'Account created. Check ' + email + ' for a confirmation link (also spam), then come back and sign in.';
+      authMsg('Account created. Check ' + email + ' for a confirmation link (also spam), then come back and sign in.', true);
     }
   } catch (e) {
-    $('authErr').textContent = 'Network problem: ' + e.message;
+    authMsg('Network problem: ' + e.message, false);
   } finally { btn.disabled = false; btn.textContent = old; }
 };
 
