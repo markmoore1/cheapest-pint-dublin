@@ -55,6 +55,7 @@
         <button id="signInBtn">Sign in</button>
         <button id="signUpBtn" class="ghost">Create account</button>
         <div class="err" id="authErr"></div>
+        <div class="hidden" id="resendRow"><button id="resendBtn" class="ghost">Resend confirmation email</button></div>
       </div>
     </div>
     <div class="who hidden" id="signedIn">
@@ -172,36 +173,81 @@ async function refreshAuthUI() {
   }
 }
 
-$('signInBtn').onclick = async () => {
-  $('authErr').textContent = '';
-  const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
-  if (error) { const e2=$('authErr'); e2.className='err'; e2.textContent = error.message; }
-};
-
+let cdTimer = null, cdLeft = 0;
 const authMsg = (txt, ok) => { const e = $('authErr'); e.className = ok ? 'ok success' : 'err'; e.textContent = txt; };
+const setBtns = (dis) => { ['signInBtn','signUpBtn','resendBtn'].forEach(id => { const b = $(id); if (b) b.disabled = dis; }); };
+function cooldown(secs, prefix) {
+  clearInterval(cdTimer);
+  let left = secs; cdLeft = secs; setBtns(true);
+  const tick = () => {
+    cdLeft = left;
+    if (left <= 0) { clearInterval(cdTimer); setBtns(false); authMsg('Cooldown over. You can try again now.', false); return; }
+    authMsg(prefix + ' Wait ' + left + 's, then try again. Pressing again only restarts the wait.', false); left--;
+  };
+  tick(); cdTimer = setInterval(tick, 1000);
+}
+function showAuthError(error, ctx) {
+  const code = error.code || '';
+  const m = /(\d+)\s*seconds?/.exec(error.message || '');
+  $('resendRow').classList.add('hidden');
+  if (code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit' || error.status === 429) {
+    return cooldown(m ? +m[1] : 60, 'Too many requests for this email.');
+  }
+  if (code === 'email_not_confirmed') {
+    $('resendRow').classList.remove('hidden');
+    return authMsg('This email is not confirmed yet. Open the confirmation link in your email, or send a new one below.', false);
+  }
+  if (code === 'invalid_credentials') return authMsg('Wrong email or password. If you have not created an account yet, use Create account.', false);
+  if (code === 'user_already_exists' || code === 'email_exists') return authMsg('An account with this email already exists. Use Sign in.', false);
+  if (code === 'weak_password') return authMsg('Password is too weak. Use at least 6 characters.', false);
+  if (error.status >= 500) return authMsg('Server error (' + error.status + '). Your account may already exist: try Sign in before creating again.', false);
+  authMsg(error.message, false);
+}
+const REDIRECT = 'https://markmoore1.github.io/cheapest-pint-dublin/';
+$('signInBtn').onclick = async () => {
+  $('authErr').textContent = ''; $('resendRow').classList.add('hidden');
+  const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
+  if (error) showAuthError(error, 'signin');
+};
 $('signUpBtn').onclick = async () => {
   const btn = $('signUpBtn');
   if (btn.disabled) return;
   btn.disabled = true; const old = btn.textContent; btn.textContent = 'Creating...';
-  $('authErr').textContent = '';
+  $('authErr').textContent = ''; $('resendRow').classList.add('hidden');
   const email = $('email').value.trim();
   try {
     const { data, error } = await sb.auth.signUp({
       email, password: $('password').value,
-      options: { emailRedirectTo: 'https://markmoore1.github.io/cheapest-pint-dublin/', data: { display_name: $('dname').value.trim() } }
+      options: { emailRedirectTo: REDIRECT, data: { display_name: $('dname').value.trim() } }
     });
-    if (error) {
-      if (error.status >= 500) authMsg('The server hiccuped. Your account may have been created: check your email for a confirmation link, or try Sign in.', false);
-      else authMsg(error.message, false);
-    } else if (data && data.session) {
-      $('authErr').textContent = '';
+    if (error) showAuthError(error, 'signup');
+    else if (data && data.session) { $('authErr').textContent = ''; }
+    else if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      authMsg('An account with this email already exists. Use Sign in. If it is not confirmed yet, Sign in will offer to resend the link.', false);
     } else {
-      authMsg('Account created. Check ' + email + ' for a confirmation link (also spam), then come back and sign in.', true);
+      authMsg('Account created. Check ' + email + ' for a confirmation link (also spam), open it once, then come back and sign in.', true);
     }
   } catch (e) {
     authMsg('Network problem: ' + e.message, false);
-  } finally { btn.disabled = false; btn.textContent = old; }
+  } finally { if (!(cdLeft > 0)) btn.disabled = false; btn.textContent = old; }
 };
+$('resendBtn').onclick = async () => {
+  const email = $('email').value.trim(); if (!email) return;
+  setBtns(true);
+  const { error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: REDIRECT } });
+  if (error) { setBtns(false); showAuthError(error, 'resend'); }
+  else { authMsg('New confirmation email sent to ' + email + '. Open the newest one only, once.', true); setTimeout(() => setBtns(false), 30000); setBtns(true); }
+};
+// Link problems come back from the server in the URL hash (error_code), never guessed.
+(function () {
+  const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const c = h.get('error_code');
+  if (c) {
+    history.replaceState(null, '', location.pathname);
+    if (c === 'otp_expired') authMsg('That confirmation link was already used or has expired. If you already opened it once, your email is confirmed: just Sign in. Otherwise Sign in to get a new link.', false);
+    else authMsg(h.get('error_description') || 'Sign-in link problem.', false);
+  }
+})();
 
 $('signOutBtn').onclick = () => sb.auth.signOut();
 
